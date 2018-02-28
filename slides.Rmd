@@ -2,7 +2,7 @@
 title: "SFG BigData Workshop"
 subtitle: "RStudio conference 2018 de-brief"
 author: "JC"
-date: "March, 1, 2018"
+date: "March, 2, 2018"
 output:
   xaringan::moon_reader:
       nature:
