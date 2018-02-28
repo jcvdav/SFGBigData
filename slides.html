@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SFG BigData Workshop</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Juan Carlos Villaseñor-Derbez" />
+    <link href="slides_files/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="slides_files/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# SFG BigData Workshop
+## RStudio conference 2018 de-brief
+### Juan Carlos Villaseñor-Derbez
+### Geb, 28, 2018
+
+---
+
+
+
+
+# Outline
+
+- Basics of a connection
+
+- BigQuery stuff
+
+- `sparklyr`
+  - visualization
+  - model fitting
+  - model testing
+
+---
+
+# Packages I am using
+
+
+```r
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(dbplyr)
+  library(DBI)
+  library(bigrquery)
+  library(dbplot)
+  library(sf)
+  library(tmap)
+  library(ggplot2)
+  library(sparklyr)
+})
+```
+
+
+---
+
+# Establishing a connection
+
+
+```r
+BQc &lt;- bigrquery::dbConnect(drv = bigrquery::dbi_driver(), 
+                      project = "ucsb-gfw", 
+                      dataset = "sfg_bigdata", 
+                      allowLargeResults = TRUE)
+```
+
+---
+
+# What's in there?
+
+
+```r
+DBI::dbListTables(BQc)
+```
+
+```
+## [1] "chile_gfw"         "trip_spp_landings"
+```
+
+---
+
+# Get first 5 records of vessel name, and position
+
+with `odbc::dbGetQuery`
+
+
+```r
+odbc::dbGetQuery(BQc,"SELECT
+  vessel_name, lon, lat
+FROM
+  [ucsb-gfw:sfg_bigdata.chile_gfw]
+LIMIT
+  5")
+```
+
+```
+##   vessel_name      lon      lat
+## 1       LIBAS 4.770298 61.85546
+## 2       LIBAS 8.218277 56.69744
+## 3       LIBAS 8.218302 56.69745
+## 4       LIBAS 8.218277 56.69746
+## 5       LIBAS 8.221514 56.69530
+```
+
+---
+
+# Get first 5 records of vessel name, and position
+
+in `SQL` chunk
+
+
+```sql
+SELECT
+  vessel_name, lon, lat
+FROM
+  [ucsb-gfw:sfg_bigdata.chile_gfw]
+LIMIT
+  5
+```
+
+
+```r
+pos
+```
+
+```
+##   vessel_name      lon      lat
+## 1       LIBAS 4.770298 61.85546
+## 2       LIBAS 8.218277 56.69744
+## 3       LIBAS 8.218302 56.69745
+## 4       LIBAS 8.218277 56.69746
+## 5       LIBAS 8.221514 56.69530
+```
+
+---
+
+# Let's try with `dplyr`
+
+
+```r
+chile_gfw &lt;- dplyr::tbl(BQc, "chile_gfw")
+```
+
+`chile_gfw` is now on our local environment... but not the whole data... so what is it?
+
+
+```r
+class(chile_gfw)
+```
+
+```
+## [1] "tbl_dbi"  "tbl_sql"  "tbl_lazy" "tbl"
+```
+
+
+```r
+dplyr::show_query(chile_gfw)
+```
+
+```
+## &lt;SQL&gt;
+## SELECT *
+## FROM [chile_gfw]
+```
+
+
+```r
+dim(chile_gfw)
+```
+
+```
+## [1] NA 25
+```
+
+---
+
+Same from objects I get out of it:
+
+
+```r
+don_julio &lt;- chile_gfw %&gt;% 
+  filter(vessel_name == "DON JULIO")
+```
+
+
+```r
+show_query(don_julio)
+```
+
+```
+## Warning: Translator is missing window variants of the following aggregate functions:
+## * %||%
+
+## Warning: Translator is missing window variants of the following aggregate functions:
+## * %||%
+```
+
+```
+## &lt;SQL&gt;
+## SELECT *
+## FROM [chile_gfw]
+## WHERE ([vessel_name] = 'DON JULIO')
+```
+
+
+---
+
+# Get first 5 records of vessel name, and position
+
+with `dplyr`
+
+
+```r
+chile_gfw %&gt;% 
+  select(vessel_name, lon, lat) %&gt;% 
+  head(5) %&gt;% 
+  show_query()
+```
+
+```
+## &lt;SQL&gt;
+## SELECT [vessel_name], [lon], [lat]
+## FROM [chile_gfw]
+## LIMIT 5
+```
+
+---
+
+# Get first 5 records of vessel name, and position
+
+with `dplyr`
+
+
+```r
+chile_gfw %&gt;% 
+  select(vessel_name, lon, lat) %&gt;% 
+  head(5)
+```
+
+```
+## # Source:   lazy query [?? x 3]
+## # Database: BigQueryConnection
+##   vessel_name   lon   lat
+##   &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt;
+## 1 LIBAS        4.77  61.9
+## 2 LIBAS        8.22  56.7
+## 3 LIBAS        8.22  56.7
+## 4 LIBAS        8.22  56.7
+## 5 LIBAS        8.22  56.7
+```
+
+---
+
+# `!!`
+## Bang-bang to translate `r`-specific code
+
+
+```r
+chile_gfw %&gt;%
+  select(vessel_name) %&gt;% 
+* mutate(today = Sys.Date()) %&gt;%
+  show_query()
+```
+
+```
+## Warning: Translator is missing window variants of the following aggregate functions:
+## * %||%
+```
+
+```
+## &lt;SQL&gt;
+## SELECT [vessel_name], SYS.DATE() AS [today]
+## FROM (SELECT [vessel_name]
+## FROM [chile_gfw]) [tulnpbpfrs]
+```
+
+---
+# `!!`
+## Bang-bang to translate `r`-specific code
+
+
+```r
+chile_gfw %&gt;%
+  select(vessel_name) %&gt;% 
+* mutate(today = !!Sys.Date()) %&gt;%
+  show_query()
+```
+
+```
+## Warning: Translator is missing window variants of the following aggregate functions:
+## * %||%
+```
+
+```
+## &lt;SQL&gt;
+## SELECT [vessel_name], '2018-02-28' AS [today]
+## FROM (SELECT [vessel_name]
+## FROM [chile_gfw]) [licbaeayra]
+```
+
+**Do not abuse the `!!`**
+
+---
+class: inverse, center, middle
+
+# `dplyr` is way easier!
+
+## ... or at least more familiar to us
+
+---
+
+# Let's run a usual question
+
+Who fishes more?
+
+
+```r
+chile_gfw %&gt;% 
+  filter(nnet_score == 1L) %&gt;% 
+  group_by(vessel_name) %&gt;% 
+  summarize(total_fishing = sum(hours, na.rm = T)/24L) %&gt;% 
+  arrange(desc(total_fishing)) %&gt;% 
+  head(5)
+```
+
+```
+## # Source:     lazy query [?? x 2]
+## # Database:   BigQueryConnection
+## # Ordered by: desc(total_fishing)
+##   vessel_name  total_fishing
+##   &lt;chr&gt;                &lt;dbl&gt;
+## 1 ANTARES               1790
+## 2 FRIOSUR IX             974
+## 3 FRIOSUR X              916
+## 4 FRIOSUR VIII           336
+## 5 MARIA JOSE             331
+```
+
+---
+
+# Adding data from disk
+
+Read it into R
+
+```r
+trip_spp_landings &lt;- readRDS("data/trip_spp_landings.rds")
+```
+
+Send it up
+
+```r
+DBI::dbWriteTable(conn = BQc,
+                  name = "trip_spp_landings",
+                  value = trip_spp_landings,
+                  temporary = TRUE)
+```
+
+We need to have a `tbl` in here
+
+
+```r
+tbl_spp_landings &lt;- tbl(BQc, "trip_spp_landings")
+```
+
+---
+class: inverse, center, middle
+
+# I want to have my summarized data on disk
+
+---
+
+# Enter `collect`
+
+- `collect` gives you the data, rather than the sql statement or the `tbl` object
+
+
+```r
+don_julio_collected &lt;- don_julio %&gt;% 
+  filter(nnet_score == 1) %&gt;% 
+  mutate(lon = floor(lon*2)/2 + 0.25,
+         lat = floor(lat*2)/2 + 0.25) %&gt;% 
+  group_by(lon,lat) %&gt;% 
+  summarize(total_fishing = sum(hours, na.rm = T)/24L) %&gt;% 
+  collect()
+```
+
+
+```r
+class(don_julio_collected)
+```
+
+```
+## [1] "grouped_df" "tbl_df"     "tbl"        "data.frame"
+```
+
+
+```r
+dim(don_julio_collected)
+```
+
+```
+## [1] 252   3
+```
+
+
+---
+
+# Visualization of collected data
+
+
+
+
+```r
+ggplot() +
+  geom_sf(data = cone) +
+  geom_raster(data = don_julio_collected,
+              aes(x = lon, y = lat, fill = total_fishing)) +
+  scale_fill_gradientn(colours = colorRamps::matlab.like(20)) +
+  theme_bw()
+```
+
+![](slides_files/figure-html/unnamed-chunk-25-1.png)&lt;!-- --&gt;
+
+
+---
+class: inverse, center, middle
+
+# `sparklyr`
+
+---
+
+# Connecting
+
+Establishing a connections is quite straightforward
+
+
+```r
+sc &lt;- spark_connect(master = "local")
+```
+
+--
+ 
+## Look at your `Connections` pane in RStudio
+
+---
+
+#"Map" data
+
+
+```r
+columns &lt;- read.csv("data/flights/flights_2013_1.csv", nrows = 5, stringsAsFactors = F) %&gt;% 
+  rename_all(tolower) %&gt;%
+  purrr::map(function(x) "character")
+```
+
+
+```r
+head(columns)
+```
+
+```
+## $year
+## [1] "character"
+## 
+## $month
+## [1] "character"
+## 
+## $day
+## [1] "character"
+## 
+## $dep_time
+## [1] "character"
+## 
+## $sched_dep_time
+## [1] "character"
+## 
+## $dep_delay
+## [1] "character"
+```
+
+---
+
+## Use spark_read(_csv) to “map” the file’s structure and location to the Spark context
+
+
+```r
+spark_flights &lt;- spark_read_csv(
+  sc,
+  name = "spark_flights",
+  path = "./data/flights/",
+  memory = FALSE,
+  columns = columns,
+  infer_schema = FALSE
+)
+```
+
+--
+
+## Look at your `Connections` pane in RStudio
+
+---
+
+# What's in there?
+
+
+```r
+class(spark_flights)
+```
+
+```
+## [1] "tbl_spark" "tbl_sql"   "tbl_lazy"  "tbl"
+```
+
+
+```r
+dim(spark_flights)
+```
+
+```
+## [1] NA 19
+```
+
+--
+
+Hu, the same stuff as before
+
+---
+class: inverse, center, middle
+
+# Common question at the RStudio conference:
+
+## Will it pipe?
+
+---
+
+# `dplyr-able`
+
+
+```r
+spark_flights %&gt;% 
+  count()
+```
+
+```
+## # Source:   lazy query [?? x 1]
+## # Database: spark_connection
+##        n
+##    &lt;dbl&gt;
+## 1 336776
+```
+
+# Yes!
+
+---
+
+# Things to have in mind
+
+- Some `tidyr` verbes don't work with `sdf`'s
+  - `spread`
+  - `gather`
+- But:
+  - There are [`sdf_` transformers](http://spark.rstudio.com/reference/#section-spark-dataframes)
+
+---
+
+# Cache the data
+
+## Open spark UI in `Connections` pane
+
+--
+
+
+```r
+cached_flights &lt;- spark_flights %&gt;% 
+  select(month,
+         dep_time,
+         arr_time,
+         arr_delay,
+         dep_delay,
+         distance,
+         sched_dep_time,
+         sched_arr_time) %&gt;%
+  mutate_all(as.numeric) %&gt;% 
+* compute("cached_flights")
+```
+
+--
+
+## Look at teh connections pane again
+
+---
+
+# Confirm it works
+
+
+```r
+cached_flights %&gt;% 
+  count()
+```
+
+```
+## # Source:   lazy query [?? x 1]
+## # Database: spark_connection
+##        n
+##    &lt;dbl&gt;
+## 1 336776
+```
+
+
+```r
+head(cached_flights, 5)
+```
+
+```
+## # Source:   lazy query [?? x 8]
+## # Database: spark_connection
+##   month dep_time arr_time arr_delay dep_delay distance sched_dep_time
+##   &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;          &lt;dbl&gt;
+## 1  7.00     1.00      236       157    212        2586           2029
+## 2  7.00     2.00      344         0      3.00     1598           2359
+## 3  7.00    29.0       151       110    104         266           2245
+## 4  7.00    43.0       322       188    193        1076           2130
+## 5  7.00    44.0       300       120    174        2475           2150
+## # ... with 1 more variable: sched_arr_time &lt;dbl&gt;
+```
+
+
+---
+
+# Visualizing with `dbplot`
+
+
+```r
+cached_flights %&gt;%
+  dbplot_line(month) +
+  theme_bw()
+```
+
+![](slides_files/figure-html/unnamed-chunk-36-1.png)&lt;!-- --&gt;
+
+---
+
+# Fit a model
+
+## Prepare the data
+
+
+```r
+sample_data &lt;- cached_flights %&gt;%
+  filter(!is.na(arr_delay)) %&gt;%
+* ft_binarizer(input.col = "arr_delay",
+*              output.col = "delayed",
+*              threshold = 15) %&gt;%
+* ft_bucketizer(input.col = "sched_dep_time",
+*               output.col = "dephour",
+*               splits = c(0, 400, 800, 1200, 1600, 2000, 2400)) %&gt;%
+  mutate(dephour = paste0("h", as.integer(dephour))) %&gt;%
+  sdf_partition(training = 0.01, testing = 0.09, other = 0.9)
+```
+
+---
+
+# Make sure it works
+
+
+```r
+tally(sample_data$training)
+```
+
+```
+## # Source:   lazy query [?? x 1]
+## # Database: spark_connection
+##       n
+##   &lt;dbl&gt;
+## 1  3338
+```
+
+
+```r
+training &lt;- sdf_register(sample_data$training, "training")
+tbl_cache(sc, "training")
+```
+
+---
+
+# Fit a model
+
+Use `sparklyr::ml_logistic_regression`
+
+
+```r
+delayed_model &lt;- training %&gt;%
+  ml_logistic_regression(delayed ~ dep_delay + dephour)
+```
+
+
+```r
+summary(delayed_model)
+```
+
+```
+## Call: ml_logistic_regression.tbl_spark(., delayed ~ dep_delay + dephour)  
+## 
+## Coefficients:
+## (Intercept)   dep_delay  dephour_h4  dephour_h3  dephour_h2  dephour_h1 
+##  -2.6501914   0.1093768   0.1236175   0.2579306   0.2939603  -0.0897466
+```
+
+
+```r
+class(delayed_model)
+```
+
+```
+## [1] "ml_model_logistic_regression" "ml_model_classification"     
+## [3] "ml_model_prediction"          "ml_model"
+```
+
+---
+
+# Run predictions in spark
+
+
+```r
+delayed_testing &lt;- sdf_predict(delayed_model, sample_data$testing)
+```
+
+
+```r
+delayed_testing %&gt;% 
+  select(delayed, dephour, prediction, probability) %&gt;% 
+  head(5)
+```
+
+```
+## # Source:   lazy query [?? x 4]
+## # Database: spark_connection
+##   delayed dephour prediction probability
+##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;list&gt;     
+## 1    1.00 h5            1.00 &lt;dbl [2]&gt;  
+## 2    0    h5            0    &lt;dbl [2]&gt;  
+## 3    1.00 h5            1.00 &lt;dbl [2]&gt;  
+## 4    1.00 h5            1.00 &lt;dbl [2]&gt;  
+## 5    0    h5            0    &lt;dbl [2]&gt;
+```
+
+---
+
+# How did we do?
+
+
+```r
+delayed_testing %&gt;%
+  group_by(delayed, prediction) %&gt;%
+  tally()
+```
+
+```
+## # Source:   lazy query [?? x 3]
+## # Database: spark_connection
+## # Groups:   delayed
+##   delayed prediction     n
+##     &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;
+## 1    0          1.00   583
+## 2    1.00       1.00  4613
+## 3    0          0    21756
+## 4    1.00       0     2391
+```
+
+---
+class: inverse, center, middle
+
+The end!
+
+---
+
+
+# Secure connections: 5 ways
+
+- `config`
+
+- keyring
+
+- Environment vaiables
+
+- `options`
+
+- Prompt for credentials
+
+---
+
+# `config.yml` file with structure:
+
+
+.pull-left[
+```
+default:
+  datawarehouse-dev:
+    driver: 'BigQueryDriver'
+    server: 'localhost'
+    uid: 'rstudio_admin'
+    pwd: 'admin_user_be_careful'
+    port: 5432
+    database: 'postgres'
+```
+]
+
+.pull-right[
+```
+con &lt;- DBI::dbConnect(odbc::odbc(),
+                      Driver = dw$driver,
+                      Server = dw$server,
+                      UID    = dw$uid,
+                      PWD    = dw$pwd,
+                      Port   = dw$port,
+                      Database = dw$database)
+```
+]
+    </textarea>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
