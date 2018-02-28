@@ -3,7 +3,7 @@
   <head>
     <title>SFG BigData Workshop</title>
     <meta charset="utf-8">
-    <meta name="author" content="Juan Carlos Villaseñor-Derbez" />
+    <meta name="author" content="JC" />
     <link href="slides_files/remark-css-0.0.1/default.css" rel="stylesheet" />
     <link href="slides_files/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
   </head>
@@ -13,8 +13,8 @@ class: center, middle, inverse, title-slide
 
 # SFG BigData Workshop
 ## RStudio conference 2018 de-brief
-### Juan Carlos Villaseñor-Derbez
-### Geb, 28, 2018
+### JC
+### March, 1, 2018
 
 ---
 
@@ -271,7 +271,7 @@ chile_gfw %&gt;%
 ## &lt;SQL&gt;
 ## SELECT [vessel_name], SYS.DATE() AS [today]
 ## FROM (SELECT [vessel_name]
-## FROM [chile_gfw]) [tulnpbpfrs]
+## FROM [chile_gfw]) [mzaxywfopo]
 ```
 
 ---
@@ -295,7 +295,7 @@ chile_gfw %&gt;%
 ## &lt;SQL&gt;
 ## SELECT [vessel_name], '2018-02-28' AS [today]
 ## FROM (SELECT [vessel_name]
-## FROM [chile_gfw]) [licbaeayra]
+## FROM [chile_gfw]) [hnijvsnkda]
 ```
 
 **Do not abuse the `!!`**
@@ -672,7 +672,7 @@ tally(sample_data$training)
 ## # Database: spark_connection
 ##       n
 ##   &lt;dbl&gt;
-## 1  3338
+## 1  3222
 ```
 
 
@@ -702,8 +702,8 @@ summary(delayed_model)
 ## Call: ml_logistic_regression.tbl_spark(., delayed ~ dep_delay + dephour)  
 ## 
 ## Coefficients:
-## (Intercept)   dep_delay  dephour_h4  dephour_h3  dephour_h2  dephour_h1 
-##  -2.6501914   0.1093768   0.1236175   0.2579306   0.2939603  -0.0897466
+## (Intercept)   dep_delay  dephour_h4  dephour_h2  dephour_h3  dephour_h1 
+##  -2.5478737   0.1012776   0.4011095   0.4331304   0.2637437  -0.3169591
 ```
 
 
@@ -737,11 +737,11 @@ delayed_testing %&gt;%
 ## # Database: spark_connection
 ##   delayed dephour prediction probability
 ##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;list&gt;     
-## 1    1.00 h5            1.00 &lt;dbl [2]&gt;  
+## 1    0    h5            0    &lt;dbl [2]&gt;  
 ## 2    0    h5            0    &lt;dbl [2]&gt;  
-## 3    1.00 h5            1.00 &lt;dbl [2]&gt;  
+## 3    1.00 h4            1.00 &lt;dbl [2]&gt;  
 ## 4    1.00 h5            1.00 &lt;dbl [2]&gt;  
-## 5    0    h5            0    &lt;dbl [2]&gt;
+## 5    1.00 h4            1.00 &lt;dbl [2]&gt;
 ```
 
 ---
@@ -761,10 +761,10 @@ delayed_testing %&gt;%
 ## # Groups:   delayed
 ##   delayed prediction     n
 ##     &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;
-## 1    0          1.00   583
-## 2    1.00       1.00  4613
-## 3    0          0    21756
-## 4    1.00       0     2391
+## 1    0          1.00   645
+## 2    0          0    21807
+## 3    1.00       1.00  4646
+## 4    1.00       0     2306
 ```
 
 ---
