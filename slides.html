@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>SFG BigData Workshop</title>
+    <title>SFG BigData</title>
     <meta charset="utf-8">
     <meta name="author" content="JC" />
     <link href="slides_files/remark-css-0.0.1/default.css" rel="stylesheet" />
@@ -11,7 +11,7 @@
     <textarea id="source">
 class: center, middle, inverse, title-slide
 
-# SFG BigData Workshop
+# SFG BigData
 ## RStudio conference 2018 de-brief
 ### JC
 ### March, 2, 2018
@@ -23,9 +23,11 @@ class: center, middle, inverse, title-slide
 
 # Outline
 
-- Basics of a connection
-
 - BigQuery stuff
+  - Basics of a connection
+  - `odbc::dbGetQuery`
+  - `sql` code chunk
+  - **`dplyr` and `dbplyr` way**
 
 - `sparklyr`
   - visualization
@@ -95,11 +97,11 @@ LIMIT
 
 ```
 ##   vessel_name      lon      lat
-## 1       LIBAS 4.770298 61.85546
-## 2       LIBAS 8.218277 56.69744
-## 3       LIBAS 8.218302 56.69745
-## 4       LIBAS 8.218277 56.69746
-## 5       LIBAS 8.221514 56.69530
+## 1       LIBAS 8.221580 56.69534
+## 2       LIBAS 8.218284 56.69743
+## 3       LIBAS 8.291012 63.90409
+## 4       LIBAS 5.133270 60.30219
+## 5       LIBAS 8.218275 56.69744
 ```
 
 ---
@@ -125,11 +127,11 @@ pos
 
 ```
 ##   vessel_name      lon      lat
-## 1       LIBAS 4.770298 61.85546
-## 2       LIBAS 8.218277 56.69744
-## 3       LIBAS 8.218302 56.69745
-## 4       LIBAS 8.218277 56.69746
-## 5       LIBAS 8.221514 56.69530
+## 1       LIBAS 8.221580 56.69534
+## 2       LIBAS 8.218284 56.69743
+## 3       LIBAS 8.291012 63.90409
+## 4       LIBAS 5.133270 60.30219
+## 5       LIBAS 8.218275 56.69744
 ```
 
 ---
@@ -271,7 +273,7 @@ chile_gfw %&gt;%
 ## &lt;SQL&gt;
 ## SELECT [vessel_name], SYS.DATE() AS [today]
 ## FROM (SELECT [vessel_name]
-## FROM [chile_gfw]) [qwcpyhrjsg]
+## FROM [chile_gfw]) [fcabybheik]
 ```
 
 ---
@@ -293,9 +295,9 @@ chile_gfw %&gt;%
 
 ```
 ## &lt;SQL&gt;
-## SELECT [vessel_name], '2018-02-28' AS [today]
+## SELECT [vessel_name], '2018-03-01' AS [today]
 ## FROM (SELECT [vessel_name]
-## FROM [chile_gfw]) [kwxflpnbfn]
+## FROM [chile_gfw]) [cywgbepwnb]
 ```
 
 **Do not abuse the `!!`**
@@ -586,7 +588,7 @@ cached_flights &lt;- spark_flights %&gt;%
 
 --
 
-## Look at teh connections pane again
+## Look at the connections pane again
 
 ---
 
@@ -672,7 +674,7 @@ tally(sample_data$training)
 ## # Database: spark_connection
 ##       n
 ##   &lt;dbl&gt;
-## 1  3293
+## 1  3323
 ```
 
 
@@ -703,7 +705,7 @@ summary(delayed_model)
 ## 
 ## Coefficients:
 ## (Intercept)   dep_delay  dephour_h4  dephour_h3  dephour_h2  dephour_h1 
-##  -2.5459199   0.1061994   0.2124721   0.1665146   0.3326545   0.1673996
+## -2.53994622  0.10749291  0.38521589  0.29133898  0.05942213  0.10013324
 ```
 
 
@@ -737,11 +739,11 @@ delayed_testing %&gt;%
 ## # Database: spark_connection
 ##   delayed dephour prediction probability
 ##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;list&gt;     
-## 1    1.00 h5            0    &lt;dbl [2]&gt;  
-## 2    1.00 h4            1.00 &lt;dbl [2]&gt;  
-## 3    0    h5            0    &lt;dbl [2]&gt;  
-## 4    1.00 h5            1.00 &lt;dbl [2]&gt;  
-## 5    0    h5            0    &lt;dbl [2]&gt;
+## 1    1.00 h5            1.00 &lt;dbl [2]&gt;  
+## 2    0    h5            0    &lt;dbl [2]&gt;  
+## 3    1.00 h4            1.00 &lt;dbl [2]&gt;  
+## 4    1.00 h4            1.00 &lt;dbl [2]&gt;  
+## 5    1.00 h5            1.00 &lt;dbl [2]&gt;
 ```
 
 ---
@@ -761,10 +763,10 @@ delayed_testing %&gt;%
 ## # Groups:   delayed
 ##   delayed prediction     n
 ##     &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;
-## 1    0          1.00   643
-## 2    1.00       0     2314
-## 3    1.00       1.00  4477
-## 4    0          0    21603
+## 1    0          1.00   698
+## 2    1.00       1.00  4745
+## 3    0          0    21786
+## 4    1.00       0     2263
 ```
 
 ---

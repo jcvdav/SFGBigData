@@ -1,5 +1,5 @@
 ---
-title: "SFG BigData Workshop"
+title: "SFG BigData"
 subtitle: "RStudio conference 2018 de-brief"
 author: "JC"
 date: "March, 2, 2018"
@@ -16,9 +16,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.height 
 
 # Outline
 
-- Basics of a connection
-
 - BigQuery stuff
+  - Basics of a connection
+  - `odbc::dbGetQuery`
+  - `sql` code chunk
+  - **`dplyr` and `dbplyr` way**
 
 - `sparklyr`
   - visualization
@@ -400,7 +402,7 @@ cached_flights <- spark_flights %>%
 
 --
 
-## Look at teh connections pane again
+## Look at the connections pane again
 
 ---
 

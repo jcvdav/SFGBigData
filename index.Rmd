@@ -1,0 +1,479 @@
+---
+title: "SFG BigData"
+subtitle: "RStudio conference 2018 de-brief"
+author: "JC"
+date: "March, 2, 2018"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.height = 3)
+```
+
+# Packages I am using
+
+```{r}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(dbplyr)
+  library(DBI)
+  library(bigrquery)
+  library(dbplot)
+  library(sf)
+  library(tmap)
+  library(ggplot2)
+  library(sparklyr)
+})
+```
+
+
+
+
+# Establishing a connection
+
+```{r}
+BQc <- bigrquery::dbConnect(drv = bigrquery::dbi_driver(), 
+                      project = "ucsb-gfw", 
+                      dataset = "sfg_bigdata", 
+                      allowLargeResults = TRUE)
+```
+
+
+
+# What's in there?
+
+```{r}
+DBI::dbListTables(BQc)
+```
+
+
+
+# Get first 5 records of vessel name, and position
+
+with `odbc::dbGetQuery`
+
+```{r}
+odbc::dbGetQuery(BQc,"SELECT
+  vessel_name, lon, lat
+FROM
+  [ucsb-gfw:sfg_bigdata.chile_gfw]
+LIMIT
+  5")
+```
+
+
+
+# Get first 5 records of vessel name, and position
+
+in `SQL` chunk
+
+```{sql, connection = BQc, output.var = "pos"}
+SELECT
+  vessel_name, lon, lat
+FROM
+  [ucsb-gfw:sfg_bigdata.chile_gfw]
+LIMIT
+  5
+```
+
+```{r}
+pos
+```
+
+
+
+# Let's try with `dplyr`
+
+```{r}
+chile_gfw <- dplyr::tbl(BQc, "chile_gfw")
+```
+
+`chile_gfw` is now on our local environment... but not the whole data... so what is it?
+
+```{r}
+class(chile_gfw)
+```
+
+```{r, message = T, warning = T}
+dplyr::show_query(chile_gfw)
+```
+
+```{r}
+dim(chile_gfw)
+```
+
+
+
+Same from objects I get out of it:
+
+```{r}
+don_julio <- chile_gfw %>% 
+  filter(vessel_name == "DON JULIO")
+```
+
+```{r, message = T, warning = T}
+show_query(don_julio)
+```
+
+
+
+
+# Get first 5 records of vessel name, and position
+
+with `dplyr`
+
+```{r, message = T, warning = T}
+chile_gfw %>% 
+  select(vessel_name, lon, lat) %>% 
+  head(5) %>% 
+  show_query()
+```
+
+
+
+# Get first 5 records of vessel name, and position
+
+with `dplyr`
+
+```{r}
+chile_gfw %>% 
+  select(vessel_name, lon, lat) %>% 
+  head(5)
+```
+
+
+
+# `!!`
+## Bang-bang to translate `r`-specific code
+
+```{r, message = T, warning = T}
+chile_gfw %>%
+  select(vessel_name) %>% 
+  mutate(today = Sys.Date()) %>% #<<
+  show_query()
+```
+
+
+# `!!`
+## Bang-bang to translate `r`-specific code
+
+```{r, message = T, warning = T}
+chile_gfw %>%
+  select(vessel_name) %>% 
+  mutate(today = !!Sys.Date()) %>% #<<
+  show_query()
+```
+
+**Do not abuse the `!!`**
+
+# `dplyr` is way easier!
+
+## ... or at least more familiar to us
+
+
+
+# Let's run a usual question
+
+Who fishes more?
+
+```{r, warning = F, message = F}
+chile_gfw %>% 
+  filter(nnet_score == 1L) %>% 
+  group_by(vessel_name) %>% 
+  summarize(total_fishing = sum(hours, na.rm = T)/24L) %>% 
+  arrange(desc(total_fishing)) %>% 
+  head(5)
+```
+
+
+
+# Adding data from disk
+
+Read it into R
+```{r}
+trip_spp_landings <- readRDS("data/trip_spp_landings.rds")
+```
+
+Send it up
+```{r, eval = F}
+DBI::dbWriteTable(conn = BQc,
+                  name = "trip_spp_landings",
+                  value = trip_spp_landings,
+                  temporary = TRUE)
+```
+
+We need to have a `tbl` in here
+
+```{r}
+tbl_spp_landings <- tbl(BQc, "trip_spp_landings")
+```
+
+# I want to have my summarized data on disk
+
+
+
+# Enter `collect`
+
+- `collect` gives you the data, rather than the sql statement or the `tbl` object
+
+```{r}
+don_julio_collected <- don_julio %>% 
+  filter(nnet_score == 1) %>% 
+  mutate(lon = floor(lon*2)/2 + 0.25,
+         lat = floor(lat*2)/2 + 0.25) %>% 
+  group_by(lon,lat) %>% 
+  summarize(total_fishing = sum(hours, na.rm = T)/24L) %>% 
+  collect()
+```
+
+```{r}
+class(don_julio_collected)
+```
+
+```{r}
+dim(don_julio_collected)
+```
+
+
+
+
+# Visualization of collected data
+
+```{r, echo = F}
+proj <- "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs"
+data("World")
+cone <- World[World$name %in% c("Chile", "Argentina", "Peru", "Bolivia"),] %>% 
+  as("sf") %>% 
+  st_transform(proj)
+```
+
+```{r, fig.height = 3}
+ggplot() +
+  geom_sf(data = cone) +
+  geom_raster(data = don_julio_collected,
+              aes(x = lon, y = lat, fill = total_fishing)) +
+  scale_fill_gradientn(colours = colorRamps::matlab.like(20)) +
+  theme_bw()
+```
+
+# `sparklyr`
+
+
+
+# Connecting
+
+Establishing a connections is quite straightforward
+
+```{r}
+sc <- spark_connect(master = "local")
+```
+
+
+ 
+## Look at your `Connections` pane in RStudio
+
+
+
+#"Map" data
+
+```{r}
+columns <- read.csv("data/flights/flights_2013_1.csv", nrows = 5, stringsAsFactors = F) %>% 
+  rename_all(tolower) %>%
+  purrr::map(function(x) "character")
+```
+
+```{r}
+head(columns)
+```
+
+
+
+## Use spark_read(_csv) to “map” the file’s structure and location to the Spark context
+
+```{r}
+spark_flights <- spark_read_csv(
+  sc,
+  name = "spark_flights",
+  path = "./data/flights/",
+  memory = FALSE,
+  columns = columns,
+  infer_schema = FALSE
+)
+```
+
+
+
+## Look at your `Connections` pane in RStudio
+
+
+
+# What's in there?
+
+```{r}
+class(spark_flights)
+```
+
+```{r}
+dim(spark_flights)
+```
+
+
+
+Hu, the same stuff as before
+
+
+# Common question at the RStudio conference:
+
+## Will it pipe?
+
+
+
+# `dplyr-able`
+
+```{r}
+spark_flights %>% 
+  count()
+```
+
+# Yes!
+
+
+
+# Things to have in mind
+
+- Some `tidyr` verbes don't work with `sdf`'s
+  - `spread`
+  - `gather`
+- But:
+  - There are [`sdf_` transformers](http://spark.rstudio.com/reference/#section-spark-dataframes)
+
+
+
+# Cache the data
+
+## Open spark UI in `Connections` pane
+
+
+
+```{r}
+cached_flights <- spark_flights %>% 
+  select(month,
+         dep_time,
+         arr_time,
+         arr_delay,
+         dep_delay,
+         distance,
+         sched_dep_time,
+         sched_arr_time) %>%
+  mutate_all(as.numeric) %>% 
+  compute("cached_flights") #<<
+```
+
+
+
+## Look at the connections pane again
+
+
+
+# Confirm it works
+
+```{r}
+cached_flights %>% 
+  count()
+```
+
+```{r}
+head(cached_flights, 5)
+```
+
+
+
+
+# Visualizing with `dbplot`
+
+```{r}
+cached_flights %>%
+  dbplot_line(month) +
+  theme_bw()
+```
+
+
+
+# Fit a model
+
+## Prepare the data
+
+```{r}
+sample_data <- cached_flights %>%
+  filter(!is.na(arr_delay)) %>%
+  ft_binarizer(input.col = "arr_delay", #<<
+               output.col = "delayed", #<<
+               threshold = 15) %>% #<<
+  ft_bucketizer(input.col = "sched_dep_time", #<<
+                output.col = "dephour", #<<
+                splits = c(0, 400, 800, 1200, 1600, 2000, 2400)) %>% #<<
+  mutate(dephour = paste0("h", as.integer(dephour))) %>%
+  sdf_partition(training = 0.01, testing = 0.09, other = 0.9)
+```
+
+
+
+# Make sure it works
+
+```{r}
+tally(sample_data$training)
+```
+
+```{r}
+training <- sdf_register(sample_data$training, "training")
+tbl_cache(sc, "training")
+```
+
+
+
+# Fit a model
+
+Use `sparklyr::ml_logistic_regression`
+
+```{r}
+delayed_model <- training %>%
+  ml_logistic_regression(delayed ~ dep_delay + dephour)
+```
+
+```{r}
+summary(delayed_model)
+```
+
+```{r}
+class(delayed_model)
+```
+
+
+
+# Run predictions in spark
+
+```{r}
+delayed_testing <- sdf_predict(delayed_model, sample_data$testing)
+```
+
+```{r}
+delayed_testing %>% 
+  select(delayed, dephour, prediction, probability) %>% 
+  head(5)
+```
+
+
+
+# How did we do?
+
+```{r}
+delayed_testing %>%
+  group_by(delayed, prediction) %>%
+  tally()
+```
+
+
+
