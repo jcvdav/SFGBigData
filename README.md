@@ -27,6 +27,8 @@ sparklyr::spark_install()
 
 - [Slides](https://rawgit.com/jcvdav/SFGBigData/master/slides.html)
 
+- [Page format](https://rawgit.com/jcvdav/SFGBigData/master/index.html)
+
 - ["Workbook" from workshop](https://rawgit.com/rstudio/bigdataclass2018/master/assets/workbook/_book/index.html)
 
 - We will use some data, so feel free to fork the repo
